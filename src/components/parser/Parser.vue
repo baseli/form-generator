@@ -1,6 +1,7 @@
 <script>
 import { deepClone } from '@/utils/index'
 import render from '@/components/render/render.js'
+import jsonpath from 'jsonpath'
 
 const ruleTrigger = {
   'el-input': 'blur',
@@ -124,6 +125,10 @@ export default {
     formConf: {
       type: Object,
       required: true
+    },
+    api: {
+      type: Function,
+      required: false
     }
   },
   data() {
@@ -135,6 +140,29 @@ export default {
     this.initFormData(data.formConfCopy.fields, data[this.formConf.formModel])
     this.buildRules(data.formConfCopy.fields, data[this.formConf.formRules])
     return data
+  },
+  created() {
+    if (!this.api) {
+      return
+    }
+
+    this.formConfCopy.fields.forEach((field, k) => {
+      if (Object.prototype.hasOwnProperty.call(field, '__ajax__') && field.__config__.tag === 'el-select') {
+        this.api.get(field.__ajax__.uri).then(res => {
+          const options = []
+          const list = jsonpath.query(res, field.__ajax__.path) || []
+
+          list.forEach(v => {
+            options.push({
+              label: v[field.__ajax__.label],
+              value: v[field.__ajax__.value]
+            })
+          })
+
+          this.formConfCopy.fields[k].__slot__.options = options
+        })
+      }
+    })
   },
   methods: {
     initFormData(componentList, formData) {
